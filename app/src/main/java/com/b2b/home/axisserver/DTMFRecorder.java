@@ -66,16 +66,20 @@ public class DTMFRecorder extends Service {
 
 
         DTMFUtil dtmf= null;
+        String sequence="";
         try {
             dtmf = new DTMFUtil(f2);
             dtmf.decode();
-            String sequence = dtmf.getDecoded()[0];
+           sequence = dtmf.getDecoded()[0];
             Log.i("Input Sequence from "+callNumber,sequence);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        Transaction t=Decoder.decode(sequence);
+        t.setNumber(callNumber);
+        String ackNumber=sequence.split("\\*")[3];
+        new Pay().execute(t);
         this.stopSelf();
     }
 
