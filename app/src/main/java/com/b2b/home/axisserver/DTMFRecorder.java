@@ -1,14 +1,19 @@
 package com.b2b.home.axisserver;
 
+import android.Manifest;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.IBinder;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -19,12 +24,17 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import audio.AudioFileException;
 import dtmfdecoder.DTMFDecoderException;
 import dtmfdecoder.DTMFUtil;
+
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 public class DTMFRecorder extends Service {
 
@@ -38,7 +48,8 @@ public class DTMFRecorder extends Service {
     int BufferElements2Rec = 1024; // want to play 2048 (2K) since 2 bytes we use only 1024
     int BytesPerElement = 2; // 2 bytes in 16bit format
     File f1 = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/Axis/call.pcm"); // The location of your PCM file
-
+    String ackNumber="";
+    Transaction t;
     public DTMFRecorder() {
     }
 
@@ -76,13 +87,72 @@ public class DTMFRecorder extends Service {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Transaction t=Decoder.decode(sequence);
+         t=Decoder.decode(sequence);
         t.setNumber(callNumber);
-        String ackNumber=sequence.split("\\*")[3];
+        ackNumber=sequence.split("\\*")[3];
         new Pay().execute(t);
         this.stopSelf();
     }
 
+    class Pay extends AsyncTask<Transaction,Void,Integer> {
+
+        @Override
+        protected Integer doInBackground(Transaction... params) {
+            Log.i("Transaction"," Account "+params[0].getAcc()+" Amount"+params[0].getAmount()+" IFSC "+params[0].getIfsc()+" Number"+params[0].getNumber());
+
+            HttpURLConnection connection = null;
+            String s = "";
+
+            String surl=ServerDetails.BaseURL+"addTransaction?number="+params[0].getNumber()+"&amount="+params[0].getAmount()
+                    +"&IFSC="+params[0].getIfsc()+"&acc="+params[0].getAcc();
+            URL url = null;
+            try {
+                url = new URL(surl);
+
+                connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+                InputStream input = connection.getInputStream();
+                char c;
+                while ((c = (char) input.read()) != (char) -1)
+                    s += c;
+
+                // Log.i("Server return",s);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            if(s.equals("true"))
+                return 1;
+            else
+                return 0;
+        }
+
+        @Override
+        protected void onPostExecute(Integer integer) {
+            super.onPostExecute(integer);
+
+            Log.i("Post Update","Send Acknowlwdgement");
+
+            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" +ackNumber+","+String.valueOf(integer)+"*"+t.getAmount()+"*"+t.getNumber()+"*"+t.getAcc()));
+
+            //Log.i("Number Dialled", String.valueOf(Uri.parse("tel:" +"1500,"+ Encoder.encode(amount,accNumber,IFSCCode,acknowledgement))));
+
+            // Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" +"04422730897,"+"500*123456789*123456789*123456789"));
+
+            if (ActivityCompat.checkSelfPermission(DTMFRecorder.this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
+            intent.setFlags(FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
+    }
     @Override
     public void onCreate() {
         super.onCreate();
