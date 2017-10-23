@@ -1,21 +1,15 @@
-package com.b2b.home.axisserver;
+package com.b2b.home.server;
 
-import android.Manifest;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.media.AudioFormat;
-import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.IBinder;
-import android.support.v4.app.ActivityCompat;
+import android.telephony.SmsManager;
 import android.util.Log;
-import android.widget.Toast;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -24,17 +18,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import audio.AudioFileException;
-import dtmfdecoder.DTMFDecoderException;
 import dtmfdecoder.DTMFUtil;
-
-import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 public class DTMFRecorder extends Service {
 
@@ -89,68 +76,43 @@ public class DTMFRecorder extends Service {
         }
          t=Decoder.decode(sequence);
         t.setNumber(callNumber);
-        ackNumber=sequence.split("\\*")[3];
-        new Pay().execute(t);
+
+
+        new Pay().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,t);
         this.stopSelf();
     }
 
-    class Pay extends AsyncTask<Transaction,Void,Integer> {
+    class Pay extends AsyncTask<Transaction,Void,String> {
 
         @Override
-        protected Integer doInBackground(Transaction... params) {
-            Log.i("Transaction"," Account "+params[0].getAcc()+" Amount"+params[0].getAmount()+" IFSC "+params[0].getIfsc()+" Number"+params[0].getNumber());
+        protected String doInBackground(Transaction... params) {
 
-            HttpURLConnection connection = null;
-            String s = "";
+            String res;
+            Log.i(params[0].getId(),params[0].getAmount()+params[0].getTramsfertype());
+                res=HTTPClient.post(ServerDetails.BaseURL+"Transaction",null,"{\n" +
+                        "\t\"id\":\" "+params[0].getId()+" \",\n" +
+                        "\t\"transfertype\":\""+ params[0].getTramsfertype()+"\",\n" +
+                        "\t\"amount\":\" "+ params[0].getAmount()+" \"\n" +
+                        "\t\n" +
+                        "}");
 
-            String surl=ServerDetails.BaseURL+"addTransaction?number="+params[0].getNumber()+"&amount="+params[0].getAmount()
-                    +"&IFSC="+params[0].getIfsc()+"&acc="+params[0].getAcc();
-            URL url = null;
-            try {
-                url = new URL(surl);
-
-                connection = (HttpURLConnection) url.openConnection();
-                connection.connect();
-                InputStream input = connection.getInputStream();
-                char c;
-                while ((c = (char) input.read()) != (char) -1)
-                    s += c;
-
-                // Log.i("Server return",s);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            if(s.equals("true"))
-                return 1;
+            Log.i("Response",res);
+            if(res.contains("Sucessfull"))
+                return params[0].getNumber()+"_"+params[0].getAmount();
             else
-                return 0;
+                return null;
         }
 
         @Override
-        protected void onPostExecute(Integer integer) {
-            super.onPostExecute(integer);
+        protected void onPostExecute(String str) {
+            super.onPostExecute(str);
 
-            Log.i("Post Update","Send Acknowlwdgement");
+            Log.i("Post Update",str);
 
-            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" +ackNumber+","+String.valueOf(integer)+"*"+t.getAmount()+"*"+t.getNumber()+"*"+t.getAcc()));
+            SmsManager smsManager = SmsManager.getDefault();
+            smsManager.sendTextMessage(str.split("_")[0], null, "Transaction Of "+str.split("_")[1]+" Successful", null, null);
 
-            //Log.i("Number Dialled", String.valueOf(Uri.parse("tel:" +"1500,"+ Encoder.encode(amount,accNumber,IFSCCode,acknowledgement))));
 
-            // Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" +"04422730897,"+"500*123456789*123456789*123456789"));
-
-            if (ActivityCompat.checkSelfPermission(DTMFRecorder.this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return;
-            }
-            intent.setFlags(FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
         }
     }
     @Override
@@ -220,7 +182,7 @@ public class DTMFRecorder extends Service {
     }
     private void startRecording() {
 
-        recorder = new AudioRecord(MediaRecorder.AudioSource.VOICE_DOWNLINK,
+       recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT,
                 RECORDER_SAMPLERATE, RECORDER_CHANNELS,
                 RECORDER_AUDIO_ENCODING, BufferElements2Rec * BytesPerElement);
 

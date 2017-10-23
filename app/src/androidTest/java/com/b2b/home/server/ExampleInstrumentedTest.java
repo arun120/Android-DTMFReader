@@ -1,4 +1,4 @@
-package com.b2b.home.axisserver;
+package com.b2b.home.server;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;

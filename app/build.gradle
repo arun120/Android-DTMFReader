@@ -4,7 +4,7 @@ android {
     compileSdkVersion 25
     buildToolsVersion "23.0.3"
     defaultConfig {
-        applicationId "com.b2b.home.axisserver"
+        applicationId "com.b2b.home.server"
         minSdkVersion 14
         targetSdkVersion 25
         versionCode 1

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.b2b.home.axisserver">
+    package="com.b2b.home.server">
 
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
 
 
     <application
@@ -18,7 +19,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity android:name="com.b2b.home.server.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -27,7 +28,7 @@
         </activity>
 
         <receiver
-            android:name=".HookStateReceiver"
+            android:name="com.b2b.home.server.HookStateReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -36,7 +37,7 @@
         </receiver>
 
         <service
-            android:name=".DTMFRecorder"
+            android:name="com.b2b.home.server.DTMFRecorder"
             android:enabled="true"
             android:exported="true" />
     </application>
