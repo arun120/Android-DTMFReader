@@ -1,6 +1,6 @@
 # AxisHackathon-DTMFReader
 
-Server Android Application to decode DTMF Tones and send Send ack to Acknowledgement Application.
+Android Application to decode DTMF Tones to text.
 
 
 # Application Demo
