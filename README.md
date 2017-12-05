@@ -1,4 +1,4 @@
-#DTMFReader / DTMF Decoder
+# DTMFReader / DTMF Decoder
 
 Android Application to decode DTMF Tones to String.
 
